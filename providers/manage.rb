@@ -34,11 +34,36 @@ rescue NameError
   return false
 end
 
+def encryped_data_bags?
+  return node[:users][:encrypted_data_bags]
+end
+
+def users_list(data_bag, search_group, remove = false, &block)
+  if encrypted_data_bags?
+    users = search(data_bag).map{ |user| Chef::EncryptedDataBagItem.load(data_bag, user.id) }
+    users = users.select do |user|
+      group = user["groups"].include?(search_group)
+
+      if remove
+        group && user["action"] == "remove"
+      else
+        group && user["action"] != "remove"
+      end
+    end
+
+    users.each{ |user| yield(user) }
+  else
+    search(data_bag, "groups:#{search_group} AND #{"NOT " if !remove}action:remove") do |user|
+      yield(user)
+    end
+  end
+end
+
 action :remove do
   if Chef::Config[:solo] and not chef_solo_search_installed?
     Chef::Log.warn("This recipe uses search. Chef Solo does not support search unless you install the chef-solo-search cookbook.")
   else
-    search(new_resource.data_bag, "groups:#{new_resource.search_group} AND action:remove") do |rm_user|
+    users_list(new_resource.data_bag, new_resource.search_group, true) do |rm_user|
       user rm_user['username'] ||= rm_user['id'] do
         action :remove
       end
@@ -53,7 +78,7 @@ action :create do
   if Chef::Config[:solo] and not chef_solo_search_installed?
     Chef::Log.warn("This recipe uses search. Chef Solo does not support search unless you install the chef-solo-search cookbook.")
   else
-    search(new_resource.data_bag, "groups:#{new_resource.search_group} AND NOT action:remove") do |u|
+    users_list(new_resource.data_bag, new_resource.search_group) do |u|
       u['username'] ||= u['id']
       security_group << u['username']
 
