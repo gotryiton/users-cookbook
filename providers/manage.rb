@@ -40,7 +40,7 @@ end
 
 def users_list(data_bag, search_group, remove = false, &block)
   if encrypted_data_bags?
-    users = search(data_bag).map{ |user| Chef::EncryptedDataBagItem.load(data_bag, user.id) }
+    users = search(data_bag).map{ |user| Chef::EncryptedDataBagItem.load(data_bag, user.id).to_hash }
     users = users.select do |user|
       group = user["groups"].include?(search_group)
 
