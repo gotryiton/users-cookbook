@@ -34,7 +34,7 @@ rescue NameError
   return false
 end
 
-def encryped_data_bags?
+def encrypted_data_bags?
   return node[:users][:encrypted_data_bags]
 end
 
